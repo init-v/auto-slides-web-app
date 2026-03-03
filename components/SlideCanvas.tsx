@@ -1,15 +1,22 @@
 import { formatCounter } from '@/lib/helpers';
 import { Slide } from '@/lib/types';
+import { SlideView } from './SlideView';
 
-export function SlideCanvas({ slide, index, total }: { slide: Slide; index: number; total: number }) {
+type SlideCanvasProps = {
+  slide: Slide;
+  index: number;
+  total: number;
+  mode: 'editor' | 'present';
+};
+
+export function SlideCanvas({ slide, index, total, mode }: SlideCanvasProps) {
   return (
-    <section className="relative flex h-full flex-1 items-center justify-center px-20">
+    <section className="relative flex h-full flex-1 justify-center px-20 py-20">
       <div className="absolute left-10 top-8 text-xs uppercase tracking-[0.25em] text-neutral-500">{formatCounter(index, total)}</div>
-      <div className="absolute right-10 top-8 text-xs text-neutral-500">← →</div>
-      <article className="max-w-3xl text-center transition-all duration-150">
-        <h2 className="mb-8 text-6xl font-medium leading-tight tracking-tight">{slide.title || 'Untitled'}</h2>
-        <p className="whitespace-pre-wrap text-xl leading-relaxed text-neutral-700">{slide.body || 'Add body content from the editor.'}</p>
-      </article>
+      {mode === 'present' && <div className="absolute right-10 top-8 text-xs text-neutral-500">← → to navigate</div>}
+      <div className="w-full max-w-5xl"> 
+        <SlideView slide={slide} mode={mode} />
+      </div>
     </section>
   );
 }

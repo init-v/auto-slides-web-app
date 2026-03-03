@@ -14,3 +14,77 @@ body {
   outline: 2px solid #111;
   outline-offset: 2px;
 }
+
+.markdown-body h2 {
+  @apply mt-8 text-2xl font-semibold text-ink;
+}
+
+.markdown-body h3 {
+  @apply mt-6 text-xl font-medium text-ink;
+}
+
+.markdown-body p {
+  @apply mb-4;
+}
+
+.markdown-body ul {
+  @apply mb-4 list-disc pl-6;
+}
+
+.markdown-body ol {
+  @apply mb-4 list-decimal pl-6;
+}
+
+.markdown-body blockquote {
+  @apply my-4 border-l-2 border-line pl-4 italic text-neutral-600;
+}
+
+.markdown-body code {
+  @apply rounded bg-neutral-200/70 px-1.5 py-0.5 font-mono text-[0.9em] text-ink;
+}
+
+.markdown-body pre {
+  @apply mb-4 overflow-x-auto rounded border border-line bg-[#f1f1ee] p-4;
+}
+
+.markdown-body pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown-body a {
+  @apply underline decoration-neutral-500 underline-offset-4;
+}
+
+@keyframes slideInNext {
+  from { transform: translateX(2.5%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutNext {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-2.5%); opacity: 0; }
+}
+
+@keyframes slideInPrev {
+  from { transform: translateX(-2.5%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutPrev {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(2.5%); opacity: 0; }
+}
+
+.animate-slide-in-next { animation: slideInNext 220ms ease-out both; }
+.animate-slide-out-next { animation: slideOutNext 220ms ease-out both; }
+.animate-slide-in-prev { animation: slideInPrev 220ms ease-out both; }
+.animate-slide-out-prev { animation: slideOutPrev 220ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-next,
+  .animate-slide-out-next,
+  .animate-slide-in-prev,
+  .animate-slide-out-prev {
+    animation: none !important;
+  }
+}

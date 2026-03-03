@@ -9,8 +9,10 @@ export const createDefaultPresentation = (): Presentation => ({
   slides: [
     {
       id: crypto.randomUUID(),
+      kicker: 'Security Guide',
       title: 'Welcome',
-      body: 'Start editing this slide.\n\nUse ← → to navigate.'
+      subtitle: 'A documentation-style slide canvas',
+      body: 'Start editing this slide.\n\n- Use ← → to navigate\n- Use **markdown** for rich content\n\n```ts\nconst ready = true;\n```'
     }
   ]
 });
@@ -21,7 +23,16 @@ export const loadPresentations = (): Presentation[] => {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as Presentation[];
-    return parsed.filter((item) => item?.id && item?.slides?.length);
+    return parsed
+      .filter((item) => item?.id && item?.slides?.length)
+      .map((item) => ({
+        ...item,
+        slides: item.slides.map((slide) => ({
+          ...slide,
+          kicker: slide.kicker ?? '',
+          subtitle: slide.subtitle ?? ''
+        }))
+      }));
   } catch {
     return [];
   }

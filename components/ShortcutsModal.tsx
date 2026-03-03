@@ -1,12 +1,13 @@
 'use client';
 
 const items = [
-  ['← / →', 'Previous / next slide'],
+  ['← / →', 'Previous / next slide (outside inputs)'],
   ['Ctrl/Cmd + N', 'New slide'],
   ['Ctrl/Cmd + D', 'Duplicate slide'],
   ['Delete / Backspace', 'Delete slide'],
   ['P', 'Toggle presenter mode'],
-  ['F', 'Toggle fullscreen (presenter)'],
+  ['F', 'Toggle fullscreen'],
+  ['O', 'Presenter overview'],
   ['?', 'Toggle help']
 ];
 

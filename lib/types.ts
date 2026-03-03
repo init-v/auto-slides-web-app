@@ -1,6 +1,8 @@
 export type Slide = {
   id: string;
+  kicker?: string;
   title: string;
+  subtitle?: string;
   body: string;
   notes?: string;
 };

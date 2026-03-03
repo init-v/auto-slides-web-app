@@ -10,12 +10,26 @@ import { SlideEditorForm } from './SlideEditorForm';
 import { SlideList } from './SlideList';
 import { TopBar } from './TopBar';
 import { ShortcutsModal } from './ShortcutsModal';
+import { SlideTransition } from './SlideTransition';
+import { PresenterControls } from './PresenterControls';
 
 export function EditorShell({ initialId }: { initialId?: string }) {
   const router = useRouter();
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduceMotion(media.matches);
+    const update = () => setReduceMotion(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     const all = loadPresentations();
@@ -25,6 +39,12 @@ export function EditorShell({ initialId }: { initialId?: string }) {
     setPresentation(current);
     if (!initialId) router.replace(`/p/${current.id}`);
   }, [initialId, router]);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   const persist = useMemo(
     () => debounce((next: Presentation) => savePresentations(upsertPresentation(next, loadPresentations())), 500),
@@ -39,7 +59,9 @@ export function EditorShell({ initialId }: { initialId?: string }) {
   const updateSlides = useCallback(
     (slides: Slide[], nextIndex = currentIndex) => {
       if (!presentation) return;
-      const normalized = slides.length ? slides : [createDefaultPresentation().slides[0]];
+      const normalized = slides.length
+        ? slides
+        : [{ id: crypto.randomUUID(), kicker: '', title: 'New Slide', subtitle: '', body: '' }];
       setPresentation({ ...presentation, slides: normalized, updatedAt: new Date().toISOString() });
       setCurrentIndex(Math.min(Math.max(nextIndex, 0), normalized.length - 1));
     },
@@ -49,19 +71,30 @@ export function EditorShell({ initialId }: { initialId?: string }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!presentation) return;
+
       if (event.key === '?' && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         setHelpOpen((prev) => !prev);
       }
-      if (isTypingTarget(event.target) && !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-      if (event.key === 'ArrowRight') setCurrentIndex((prev) => Math.min(prev + 1, presentation.slides.length - 1));
-      if (event.key === 'ArrowLeft') setCurrentIndex((prev) => Math.max(prev - 1, 0));
+
+      if (isTypingTarget(event.target)) return;
+
+      if (event.key === 'ArrowRight') {
+        setDirection('next');
+        setCurrentIndex((prev) => Math.min(prev + 1, presentation.slides.length - 1));
+      }
+      if (event.key === 'ArrowLeft') {
+        setDirection('prev');
+        setCurrentIndex((prev) => Math.max(prev - 1, 0));
+      }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
         event.preventDefault();
-        const slide = { id: crypto.randomUUID(), title: 'New Slide', body: '' };
+        const slide = { id: crypto.randomUUID(), kicker: '', title: 'New Slide', subtitle: '', body: '' };
         const next = [...presentation.slides.slice(0, currentIndex + 1), slide, ...presentation.slides.slice(currentIndex + 1)];
         updateSlides(next, currentIndex + 1);
       }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
         event.preventDefault();
         const src = presentation.slides[currentIndex];
@@ -69,6 +102,7 @@ export function EditorShell({ initialId }: { initialId?: string }) {
         const next = [...presentation.slides.slice(0, currentIndex + 1), copy, ...presentation.slides.slice(currentIndex + 1)];
         updateSlides(next, currentIndex + 1);
       }
+
       if ((event.key === 'Delete' || event.key === 'Backspace') && !isTypingTarget(event.target)) {
         event.preventDefault();
         if (window.confirm('Delete this slide?')) {
@@ -76,7 +110,15 @@ export function EditorShell({ initialId }: { initialId?: string }) {
           updateSlides(next, Math.max(0, currentIndex - 1));
         }
       }
-      if (event.key.toLowerCase() === 'p' && !event.metaKey && !event.ctrlKey) router.push(`/present/${presentation.id}`);
+
+      if (event.key.toLowerCase() === 'p' && !event.metaKey && !event.ctrlKey) {
+        router.push(`/present/${presentation.id}`);
+      }
+
+      if (event.key.toLowerCase() === 'f' && !event.metaKey && !event.ctrlKey) {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+        else document.exitFullscreen().catch(() => {});
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -109,32 +151,59 @@ export function EditorShell({ initialId }: { initialId?: string }) {
         onTogglePresenter={() => router.push(`/present/${presentation.id}`)}
       />
       <div className="flex h-[calc(100vh-56px)] min-w-[980px]">
-        <SlideList
-          slides={presentation.slides}
-          currentIndex={currentIndex}
-          onSelect={setCurrentIndex}
-          onNew={() => {
-            const slide = { id: crypto.randomUUID(), title: 'New Slide', body: '' };
-            updateSlides([...presentation.slides, slide], presentation.slides.length);
-          }}
-          onDelete={() => {
-            if (window.confirm('Delete this slide?')) updateSlides(presentation.slides.filter((_, i) => i !== currentIndex), Math.max(0, currentIndex - 1));
-          }}
-          onDuplicate={() => {
-            const src = presentation.slides[currentIndex];
-            updateSlides([...presentation.slides.slice(0, currentIndex + 1), { ...src, id: crypto.randomUUID(), title: `${src.title} Copy` }, ...presentation.slides.slice(currentIndex + 1)], currentIndex + 1);
-          }}
-          onMove={(direction) => {
-            const target = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-            if (target < 0 || target >= presentation.slides.length) return;
-            const next = [...presentation.slides];
-            [next[currentIndex], next[target]] = [next[target], next[currentIndex]];
-            updateSlides(next, target);
-          }}
+        {sidebarVisible && (
+          <SlideList
+            slides={presentation.slides}
+            currentIndex={currentIndex}
+            onSelect={(index) => {
+              setDirection(index > currentIndex ? 'next' : 'prev');
+              setCurrentIndex(index);
+            }}
+            onNew={() => {
+              const slide = { id: crypto.randomUUID(), kicker: '', title: 'New Slide', subtitle: '', body: '' };
+              updateSlides([...presentation.slides, slide], presentation.slides.length);
+            }}
+            onDelete={() => {
+              if (window.confirm('Delete this slide?')) updateSlides(presentation.slides.filter((_, i) => i !== currentIndex), Math.max(0, currentIndex - 1));
+            }}
+            onDuplicate={() => {
+              const src = presentation.slides[currentIndex];
+              updateSlides([...presentation.slides.slice(0, currentIndex + 1), { ...src, id: crypto.randomUUID(), title: `${src.title} Copy` }, ...presentation.slides.slice(currentIndex + 1)], currentIndex + 1);
+            }}
+            onMove={(moveDirection) => {
+              const target = moveDirection === 'up' ? currentIndex - 1 : currentIndex + 1;
+              if (target < 0 || target >= presentation.slides.length) return;
+              const next = [...presentation.slides];
+              [next[currentIndex], next[target]] = [next[target], next[currentIndex]];
+              setDirection(moveDirection === 'up' ? 'prev' : 'next');
+              updateSlides(next, target);
+            }}
+          />
+        )}
+        <div className="flex-1">
+          <SlideTransition
+            slide={current}
+            direction={direction}
+            reduceMotion={reduceMotion}
+            renderSlide={(transitionSlide) => <SlideCanvas slide={transitionSlide} index={currentIndex} total={presentation.slides.length} mode="editor" />}
+          />
+        </div>
+        <SlideEditorForm
+          slide={current}
+          onChange={(slide) => updateSlides(presentation.slides.map((s, i) => (i === currentIndex ? slide : s)), currentIndex)}
         />
-        <SlideCanvas slide={current} index={currentIndex} total={presentation.slides.length} />
-        <SlideEditorForm slide={current} onChange={(slide) => updateSlides(presentation.slides.map((s, i) => (i === currentIndex ? slide : s)), currentIndex)} />
       </div>
+      <PresenterControls
+        isPresenter={false}
+        isFullscreen={isFullscreen}
+        sidebarVisible={sidebarVisible}
+        onToggleSidebar={() => setSidebarVisible((prev) => !prev)}
+        onToggleFullscreen={() => {
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+          else document.exitFullscreen().catch(() => {});
+        }}
+        onTogglePresenter={() => router.push(`/present/${presentation.id}`)}
+      />
       <ShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
